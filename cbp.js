@@ -1,12 +1,13 @@
-const crypto = require("crypto");
-const fetch = require("node-fetch");
-const { stat } = require("fs");
-const { type } = require("os");
+import { createHmac } from "crypto";
+import fetch, { Headers, Request } from "node-fetch";
+import { stat } from "fs";
+import { type } from "os";
 class CBP {
   constructor() {
-    this.secret = "1234567890";
-    this.passphrase = "1234567890";
-    this.url = "https://api-public.sandbox.pro.coinbase.com";
+    this.secret =
+      "123";
+    this.passphrase = "456";
+    this.url = "https://api-public.sandbox.exchange.coinbase.com";
     //this.url = "https://api.pro.coinbase.com";
   }
 
@@ -16,10 +17,9 @@ class CBP {
     let body = JSON.stringify(message);
     let full = timeStamp + method + requestPath + body;
 
-    let key = Buffer(this.secret, "base64");
-    let hmac = crypto.createHmac("sha256", key);
-    let header = new fetch.Headers();
-    header.append("Content-Type", "application/json");
+    let key = Buffer.from(this.secret, "base64");
+    let hmac = createHmac("sha256", key);
+    let header = new Headers();
     header.append("CB-ACCESS-KEY", this.secret);
     header.append("CB-ACCESS-SIGN", hmac.update(full).digest("base64"));
     header.append("CB-ACCESS-TIMESTAMP", timeStamp);
@@ -28,7 +28,7 @@ class CBP {
   }
 
   listAccounts() {
-    const request = new fetch.Request(this.url, {
+    const request = new Request(this.url + "/accounts", {
       method: "GET",
       header: this.sign("", "/accounts", "GET"),
     });
@@ -36,7 +36,7 @@ class CBP {
   }
 
   getAccount(account) {
-    const request = new fetch.Request(this.url, {
+    const request = new Request(this.url + "/accounts/", {
       method: "GET",
       header: this.sign("", "/accounts/" + account, "GET"),
     });
@@ -44,7 +44,7 @@ class CBP {
   }
 
   getAccountHistory(account) {
-    const request = new fetch.Request(this.url, {
+    const request = new Request(this.url + "/accounts/" + account + "/ledger", {
       method: "GET",
       header: this.sign("", "/accounts/" + account + "/ledger", "GET"),
     });
@@ -52,7 +52,7 @@ class CBP {
   }
 
   getHolds(account) {
-    const request = new fetch.Request(this.url, {
+    const request = new Request(this.url + "/accounts/" + account + "/holds", {
       method: "GET",
       header: this.sign("", "/accounts/" + account + "/holds", "GET"),
     });
@@ -88,7 +88,7 @@ class CBP {
       }
     }
 
-    const request = new fetch.Request(this.url, {
+    const request = new Request(this.url + "/orders", {
       method: "POST",
       header: this.sign(JSON.stringify(json), "/orders", "POST"),
     });
@@ -126,7 +126,7 @@ class CBP {
         json[list[i]] = arguments[i];
       }
     }
-    const request = new fetch.Request(this.url, {
+    const request = new Request(this.url + "/orders", {
       method: "POST",
       header: this.sign(JSON.stringify(json), "/orders", "POST"),
     });
@@ -134,18 +134,37 @@ class CBP {
   }
 
   cancelOrder(id, clientID = "", productID = "") {
-    const request = new fetch.Request(this.url, {
-      method: "DELETE",
-      header: this.sign("", "/orders/" + (id ? id : clientID ? "client:" + clientID : "") + (productID ? "?product_id=" + productID : ""), "DELETE"),
-    });
+    const request = new Request(
+      this.url +
+        "/orders/" +
+        (id ? id : clientID ? "client:" + clientID : "") +
+        (productID ? "?product_id=" + productID : ""),
+      {
+        method: "DELETE",
+        header: this.sign(
+          "",
+          "/orders/" +
+            (id ? id : clientID ? "client:" + clientID : "") +
+            (productID ? "?product_id=" + productID : ""),
+          "DELETE"
+        ),
+      }
+    );
     return fetch(request);
   }
 
   cancelAllOrders(productID = "") {
-    const request = new fetch.Request(this.url, {
-      method: "DELETE",
-      header: this.sign("", "/orders" + (productID ? "?product_id=" + productID : ""), "DELETE"),
-    });
+    const request = new Request(
+      this.url + "/orders" + (productID ? "?product_id=" + productID : ""),
+      {
+        method: "DELETE",
+        header: this.sign(
+          "",
+          "/orders" + (productID ? "?product_id=" + productID : ""),
+          "DELETE"
+        ),
+      }
+    );
     return fetch(request);
   }
 
@@ -153,12 +172,13 @@ class CBP {
     let queryParameters = "?status=";
     if (Array.isArray(status)) {
       for (let i = 0; i < status.length; i++) {
-        queryParameters += status[i] + (i < status.length - 1 ? "&status=" : "");
+        queryParameters +=
+          status[i] + (i < status.length - 1 ? "&status=" : "");
       }
     } else if (typeof status === "string") {
       queryParameters += status + (productID ? "product_id=" + productID : "");
     }
-    const request = new fetch.Request(this.url, {
+    const request = new Request(this.url + "/orders" + queryParameters, {
       method: "GET",
       header: this.sign("", "/orders" + queryParameters, "GET"),
     });
@@ -166,7 +186,7 @@ class CBP {
   }
 
   getOrder(id, clientID = "") {
-    const request = new fetch.Request(this.url, {
+    const request = new Request(this.url + "/orders/" + (id ? id : clientID), {
       method: "GET",
       header: this.sign("", "/orders/" + (id ? id : clientID), "GET"),
     });
@@ -174,15 +194,22 @@ class CBP {
   }
 
   listFills(orderID, productID = "") {
-    const request = new fetch.Request(this.url, {
-      method: "GET",
-      header: this.sign("", "/orders/" + (orderID ? orderID : productID), "GET"),
-    });
+    const request = new Request(
+      this.url + "/orders/" + (orderID ? orderID : productID),
+      {
+        method: "GET",
+        header: this.sign(
+          "",
+          "/orders/" + (orderID ? orderID : productID),
+          "GET"
+        ),
+      }
+    );
     return fetch(request);
   }
 
   getCurrentExchangeLimits() {
-    const request = new fetch.Request(this.url, {
+    const request = new Request(this.url + "/users/self/exchange-limits", {
       method: "GET",
       header: this.sign("", "/users/self/exchange-limits", "GET"),
     });
@@ -202,7 +229,7 @@ class CBP {
       }
     }
 
-    const request = new fetch.Request(this.url, {
+    const request = new Request(this.url + "/transfers?" + queryParameters, {
       method: "GET",
       header: this.sign("", "/transfers?" + queryParameters, "GET"),
     });
@@ -210,60 +237,77 @@ class CBP {
   }
 
   getDeposit(transferID) {
-    const request = new fetch.Request(this.url, {
+    const request = new Request(this.url + "/transfers/" + transferID, {
       method: "GET",
       header: this.sign("", "/transfers/" + transferID, "GET"),
     });
     return fetch(request);
   }
 
-
   depositFundsFrom(amount, currency, paymentMethodID) {
     let json = {
-      "amount": amount,
-      "currency": currency,
-      "payment_method_id": paymentMethodID
+      amount: amount,
+      currency: currency,
+      payment_method_id: paymentMethodID,
     };
 
-    const request = new fetch.Request(this.url, {
-      method: "POST",
-      header: this.sign(JSON.stringify(json), "/deposits/payment-method", "POST"),
-    });
+    const request = new Request(
+      this.url + JSON.stringify(json),
+      "/deposits/payment-method",
+      {
+        method: "POST",
+        header: this.sign(
+          JSON.stringify(json),
+          "/deposits/payment-method",
+          "POST"
+        ),
+      }
+    );
     return fetch(request);
   }
 
   depositFundsFromCB(amount, currency, coinbaseAccountID) {
     let json = {
-      "amount": amount,
-      "currency": currency,
-      "coinbase_account_id": coinbaseAccountID
+      amount: amount,
+      currency: currency,
+      coinbase_account_id: coinbaseAccountID,
     };
 
-    const request = new fetch.Request(this.url, {
-      method: "POST",
-      header: this.sign(JSON.stringify(json), "/deposits/coinbase-account", "POST"),
-    });
+    const request = new Request(
+      this.url + JSON.stringify(json),
+      "/deposits/coinbase-account",
+      {
+        method: "POST",
+        header: this.sign(
+          JSON.stringify(json),
+          "/deposits/coinbase-account",
+          "POST"
+        ),
+      }
+    );
     return fetch(request);
-
   }
 
   generateCryptoAddress(cbAccountID) {
-    const request = new fetch.Request(this.url, {
-      method: "POST",
-      header: this.sign("", "/coinbase-accounts/" + cbAccountID + "/addresses", "POST"),
-    });
+    const request = new Request(
+      this.url + "/coinbase-accounts/" + cbAccountID + "/addresses",
+      {
+        method: "POST",
+        header: this.sign(
+          "",
+          "/coinbase-accounts/" + cbAccountID + "/addresses",
+          "POST"
+        ),
+      }
+    );
     return fetch(request);
   }
 
   listWithdrawals() {
-    const request = new fetch.Request(this.url, {
+    const request = new Request(this.url + "/deposits/coinbase-account", {
       method: "GET",
       header: this.sign("", "/deposits/coinbase-account", "GET"),
     });
-
   }
 }
 
-let cbp = new CBP();
-
-//cbp.listAccounts();
